@@ -1,30 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2012-2013 Samsung Electronics Co., Ltd.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version 2
- *  of the License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _SDFAT_FS_H
-#define _SDFAT_FS_H
+#ifndef _EXFAT_FS_H
+#define _EXFAT_FS_H
 
 #include <linux/types.h>
 #include <linux/magic.h>
 #include <asm/byteorder.h>
 
-/*----------------------------------------------------------------------*/
-/*  Constant & Macro Definitions                                        */
-/*----------------------------------------------------------------------*/
 #ifndef MSDOS_SUPER_MAGIC
 #define MSDOS_SUPER_MAGIC       0x4d44          /* MD */
 #endif
@@ -33,11 +18,11 @@
 #define EXFAT_SUPER_MAGIC       (0x2011BAB0UL)
 #endif /* EXFAT_SUPER_MAGIC */
 
-#ifndef SDFAT_SUPER_MAGIC
-#define SDFAT_SUPER_MAGIC       (0x5EC5DFA4UL)
-#endif /* SDFAT_SUPER_MAGIC */
+#ifndef EXFAT_SUPER_MAGIC
+#define EXFAT_SUPER_MAGIC       (0x5EC5DFA4UL)
+#endif /* EXFAT_SUPER_MAGIC */
 
-#define SDFAT_ROOT_INO          1
+#define EXFAT_ROOT_INO          1
 
 /* FAT types */
 #define FAT12                   0x01    // FAT12
@@ -148,48 +133,12 @@
 #define CS_PBR_SECTOR           1
 #define CS_DEFAULT              2
 
-/* time min/max */
-/* Jan 1 GMT 00:00:00 1980 */
-#define SDFAT_MIN_TIMESTAMP_SECS    315532800LL
-/* Dec 31 GMT 23:59:59 2107 */
-#define SDFAT_MAX_TIMESTAMP_SECS    4354819199LL
-
-
 /*
  * ioctl command
  */
-#define SDFAT_IOCTL_GET_VOLUME_ID	_IOR('r', 0x12, __u32)
-#define SDFAT_IOCTL_DFR_INFO		_IOC(_IOC_NONE, 'E', 0x13, sizeof(u32))
-#define SDFAT_IOCTL_DFR_TRAV		_IOC(_IOC_NONE, 'E', 0x14, sizeof(u32))
-#define SDFAT_IOCTL_DFR_REQ		_IOC(_IOC_NONE, 'E', 0x15, sizeof(u32))
-#define SDFAT_IOCTL_DFR_SPO_FLAG	_IOC(_IOC_NONE, 'E', 0x16, sizeof(u32))
-#define SDFAT_IOCTL_PANIC               _IOC(_IOC_NONE, 'E', 0x17, sizeof(u32))
+#define EXFAT_IOCTL_GET_VOLUME_ID	_IOR('r', 0x12, __u32)
 
-/*
- * ioctl command for debugging
- */
-
-/*
- * IOCTL code 'f' used by
- *   - file systems typically #0~0x1F
- *   - embedded terminal devices #128~
- *   - exts for debugging purpose #99
- * number 100 and 101 is available now but has possible conflicts
- *
- * NOTE : This is available only If CONFIG_SDFAT_DVBG_IOCTL is enabled.
- *
- */
-#define SDFAT_IOC_GET_DEBUGFLAGS       _IOR('f', 100, long)
-#define SDFAT_IOC_SET_DEBUGFLAGS       _IOW('f', 101, long)
-
-#define SDFAT_DEBUGFLAGS_INVALID_UMOUNT        0x01
-#define SDFAT_DEBUGFLAGS_ERROR_RW              0x02
-
-/*----------------------------------------------------------------------*/
-/*  On-Disk Type Definitions                                            */
-/*----------------------------------------------------------------------*/
-
-/* FAT12/16/32 BIOS parameter block (64 bytes) */
+/* FAT12/16 BIOS parameter block (64 bytes) */
 typedef struct {
 	__u8	jmp_boot[3];
 	__u8	oem_name[8];
@@ -207,28 +156,41 @@ typedef struct {
 	__le32	num_hid_sectors;	/* . */
 	__le32	num_huge_sectors;
 
-	union {
-		struct {
-			__u8	phy_drv_no;
-			__u8	state;	/* used by WinNT for mount state */
-			__u8	ext_signature;
-			__u8	vol_serial[4];
-			__u8	vol_label[11];
-			__u8	vol_type[8];
-			__le16  nouse;
-		} f16;
+	__u8	phy_drv_no;
+	__u8	state;			/* used by WindowsNT for mount state */
+	__u8	ext_signature;
+	__u8	vol_serial[4];
+	__u8	vol_label[11];
+	__u8	vol_type[8];
+	__le16	dummy;
+} bpb16_t;
 
-		struct {
-			__le32	num_fat32_sectors;
-			__le16	ext_flags;
-			__u8	fs_version[2];
-			__le32	root_cluster;		/* . */
-			__le16	fsinfo_sector;
-			__le16	backup_sector;
-			__le16	reserved[6];		/* . */
-		} f32;
-	};
-} bpb_t;
+/* FAT32 BIOS parameter block (64 bytes) */
+typedef struct {
+	__u8	jmp_boot[3];
+	__u8	oem_name[8];
+
+	__u8	sect_size[2];		/* unaligned */
+	__u8	sect_per_clus;
+	__le16	num_reserved;
+	__u8	num_fats;
+	__u8	num_root_entries[2];	/* unaligned */
+	__u8	num_sectors[2];		/* unaligned */
+	__u8	media_type;
+	__le16  num_fat_sectors;	/* zero */
+	__le16  sectors_in_track;
+	__le16  num_heads;
+	__le32	num_hid_sectors;	/* . */
+	__le32	num_huge_sectors;
+
+	__le32	num_fat32_sectors;
+	__le16	ext_flags;
+	__u8	fs_version[2];
+	__le32	root_cluster;		/* . */
+	__le16	fsinfo_sector;
+	__le16	backup_sector;
+	__le16	reserved[6];		/* . */
+} bpb32_t;
 
 /* FAT32 EXTEND BIOS parameter block (32 bytes) */
 typedef struct {
@@ -270,12 +232,12 @@ typedef struct {
 
 /* FAT32 PBR (64 bytes) */
 typedef struct {
-	bpb_t bpb;
+	bpb16_t bpb;
 } pbr16_t;
 
 /* FAT32 PBR[BPB+BSX] (96 bytes) */
 typedef struct {
-	bpb_t bpb;
+	bpb32_t bpb;
 	bsx32_t bsx;
 } pbr32_t;
 
@@ -289,7 +251,8 @@ typedef struct {
 typedef struct {
 	union {
 		__u8	raw[64];
-		bpb_t	fat;
+		bpb16_t f16;
+		bpb32_t f32;
 		bpb64_t f64;
 	} bpb;
 	union {
@@ -359,10 +322,8 @@ typedef struct {
 	__le16	access_date;		// aligned
 	__u8	create_time_ms;
 	__u8	modify_time_ms;
-	__u8	create_tz;
-	__u8	modify_tz;
-	__u8	access_tz;
-	__u8	reserved2[7];
+	__u8	access_time_ms;
+	__u8	reserved2[9];
 } FILE_DENTRY_T;
 
 /* EXFAT stream extension directory entry (32 bytes) */
@@ -413,4 +374,4 @@ typedef struct {
 	__u8	reserved[8];
 } VOLM_DENTRY_T;
 
-#endif /* _SDFAT_FS_H */
+#endif /* _EXFAT_FS_H */
