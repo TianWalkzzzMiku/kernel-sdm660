@@ -2,7 +2,7 @@
 
 export KERNELNAME=Deagle
 
-export LOCALVERSION=V13
+export LOCALVERSION=V15
 
 export KBUILD_BUILD_USER=builder
 
